@@ -66,9 +66,29 @@ static void MX_TIM4_Init(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 #include "string.h"
+
+#define MSGLENGTH 5
+
+uint8_t myusartBuf[MSGLENGTH];
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+  if (huart->Instance == USART1)
+  {
+   if(myusartBuf[MSGLENGTH-1] == '\n')	// process data
+   {
+      /* Receive MSGLENGTH new bytes */
+      HAL_UART_Receive_IT(&huart1, myusartBuf, MSGLENGTH);
+   }
+   else
+   {
+      /* Receive MSGLENGTH new bytes */
+      HAL_UART_Receive_IT(&huart1, myusartBuf, MSGLENGTH);
+   }
+  }
+}
+
 /* USER CODE END 0 */
-
-
 
 /**
   * @brief  The application entry point.
@@ -103,7 +123,7 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-
+  HAL_UART_Receive_IT(&huart1, myusartBuf, MSGLENGTH);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -386,7 +406,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 1;
+  htim3.Init.Prescaler = 0;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 2048;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -439,7 +459,7 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 1;
+  htim4.Init.Prescaler = 0;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim4.Init.Period = 2048;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
