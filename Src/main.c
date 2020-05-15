@@ -43,7 +43,6 @@
 /* Private variables ---------------------------------------------------------*/
 ADC_HandleTypeDef hadc1;
 
-TIM_HandleTypeDef htim3;
 TIM_HandleTypeDef htim4;
 
 UART_HandleTypeDef huart1;
@@ -57,7 +56,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_ADC1_Init(void);
-static void MX_TIM3_Init(void);
 static void MX_TIM4_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -120,7 +118,6 @@ int main(void)
   MX_GPIO_Init();
   MX_USART1_UART_Init();
   MX_ADC1_Init();
-  MX_TIM3_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
   HAL_UART_Receive_IT(&huart1, myusartBuf, MSGLENGTH);
@@ -130,8 +127,8 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    int ADCValue1 = 0;
-    int ADCValue2 = 0;
+    int ADCValue1 = 4095;
+    int ADCValue2 = 4095;
 
     if (HAL_ADC_Start(&hadc1) != HAL_OK)
     {
@@ -165,69 +162,10 @@ int main(void)
     }
     HAL_ADC_Stop(&hadc1);
 
+
     if(ADCValue1 > (2048 + 100))
     {
       int speed = ADCValue1 - 2048;
-
-      TIM_OC_InitTypeDef sConfigOC;
-
-      sConfigOC.OCMode = TIM_OCMODE_PWM1;
-      sConfigOC.Pulse = 0;
-      sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-      sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-      HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1);
-      HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-
-      sConfigOC.OCMode = TIM_OCMODE_PWM1;
-      sConfigOC.Pulse = speed;
-      sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-      sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-      HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2);
-      HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-    }
-    else
-      if(ADCValue1 < (2048 - 100))
-      {
-        int speed = 2048 - ADCValue1;
-
-        TIM_OC_InitTypeDef sConfigOC;
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = speed;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1);
-        HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = 0;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2);
-        HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-      }
-      else
-      {
-        TIM_OC_InitTypeDef sConfigOC;
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = 0;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1);
-        HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = 0;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2);
-        HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);
-      }
-
-    if(ADCValue2 > (2048 + 100))
-    {
-      int speed = ADCValue2 - 2048;
 
       TIM_OC_InitTypeDef sConfigOC;
 
@@ -246,9 +184,9 @@ int main(void)
       HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
     }
     else
-      if(ADCValue2 < (2048 - 100))
+      if(ADCValue1 < (2048 - 100))
       {
-        int speed = 2048 - ADCValue2;
+        int speed = 2048 - ADCValue1;
 
         TIM_OC_InitTypeDef sConfigOC;
 
@@ -283,6 +221,66 @@ int main(void)
         sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
         HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
         HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+      }
+
+    if(ADCValue2 > (2048 + 100))
+    {
+      int speed = ADCValue2 - 2048;
+
+      TIM_OC_InitTypeDef sConfigOC;
+
+      sConfigOC.OCMode = TIM_OCMODE_PWM1;
+      sConfigOC.Pulse = 0;
+      sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+      sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
+      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+
+      sConfigOC.OCMode = TIM_OCMODE_PWM1;
+      sConfigOC.Pulse = speed;
+      sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+      sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
+      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+    }
+    else
+      if(ADCValue2 < (2048 - 100))
+      {
+        int speed = 2048 - ADCValue2;
+
+        TIM_OC_InitTypeDef sConfigOC;
+
+        sConfigOC.OCMode = TIM_OCMODE_PWM1;
+        sConfigOC.Pulse = speed;
+        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+
+        sConfigOC.OCMode = TIM_OCMODE_PWM1;
+        sConfigOC.Pulse = 0;
+        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+      }
+      else
+      {
+        TIM_OC_InitTypeDef sConfigOC;
+
+        sConfigOC.OCMode = TIM_OCMODE_PWM1;
+        sConfigOC.Pulse = 0;
+        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+
+        sConfigOC.OCMode = TIM_OCMODE_PWM1;
+        sConfigOC.Pulse = 0;
+        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
       }
     /* USER CODE END WHILE */
 
@@ -388,59 +386,6 @@ static void MX_ADC1_Init(void)
 }
 
 /**
-  * @brief TIM3 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM3_Init(void)
-{
-
-  /* USER CODE BEGIN TIM3_Init 0 */
-
-  /* USER CODE END TIM3_Init 0 */
-
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_OC_InitTypeDef sConfigOC = {0};
-
-  /* USER CODE BEGIN TIM3_Init 1 */
-
-  /* USER CODE END TIM3_Init 1 */
-  htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 0;
-  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 2048;
-  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
-  if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigOC.OCMode = TIM_OCMODE_PWM1;
-  sConfigOC.Pulse = 0;
-  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM3_Init 2 */
-
-  /* USER CODE END TIM3_Init 2 */
-  HAL_TIM_MspPostInit(&htim3);
-
-}
-
-/**
   * @brief TIM4 Initialization Function
   * @param None
   * @retval None
@@ -459,7 +404,7 @@ static void MX_TIM4_Init(void)
 
   /* USER CODE END TIM4_Init 1 */
   htim4.Instance = TIM4;
-  htim4.Init.Prescaler = 0;
+  htim4.Init.Prescaler = 2;
   htim4.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim4.Init.Period = 2048;
   htim4.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -483,6 +428,14 @@ static void MX_TIM4_Init(void)
     Error_Handler();
   }
   if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4) != HAL_OK)
   {
     Error_Handler();
   }
