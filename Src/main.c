@@ -63,25 +63,31 @@ static void MX_TIM4_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
 #include "string.h"
+#include "stdio.h"
 
-#define MSGLENGTH 5
+int ADCValue1 = 0;
+int ADCValue2 = 0;
 
-uint8_t myusartBuf[MSGLENGTH];
+#define MSGLENGTH 11
+uint8_t usartBuf[MSGLENGTH];
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART1)
   {
-   if(myusartBuf[MSGLENGTH-1] == '\n')	// process data
+   if(usartBuf[MSGLENGTH-1] == '\n')	// process data
    {
+	  sscanf((char*)usartBuf, "%x %x", &ADCValue1, &ADCValue2);
+
       /* Receive MSGLENGTH new bytes */
-      HAL_UART_Receive_IT(&huart1, myusartBuf, MSGLENGTH);
+      HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
    }
    else
    {
       /* Receive MSGLENGTH new bytes */
-      HAL_UART_Receive_IT(&huart1, myusartBuf, MSGLENGTH);
+      HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
    }
   }
 }
@@ -120,16 +126,16 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT(&huart1, myusartBuf, MSGLENGTH);
+  HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-    int ADCValue1 = 4095;
-    int ADCValue2 = 4095;
 
+
+#ifdef USEADC
     if (HAL_ADC_Start(&hadc1) != HAL_OK)
     {
         /* Start Conversation Error */
@@ -161,6 +167,7 @@ int main(void)
         ADCValue2 = HAL_ADC_GetValue(&hadc1);
     }
     HAL_ADC_Stop(&hadc1);
+#endif
 
 
     if(ADCValue1 > (2048 + 100))
