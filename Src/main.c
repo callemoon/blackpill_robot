@@ -73,132 +73,136 @@ int ADCValue2 = 0;
 #define MSGLENGTH 11
 uint8_t usartBuf[MSGLENGTH];
 
-#define MIDDLEVALUE 2048
-#define DEADZONE 100
+#define JOYSTICK_MIDVALUE 2048
+#define JOYSTICK_DEADZONE 100
 
-int syncMode = 0;	// in syncmode we read one byte at a time and searach for \n character
+int uartSyncMode = 0;	// in syncmode we read one byte at a time and search for \n character
 
 /*
  * Process incoming UART data from Bluetooth module (HM-10 BLE)
  */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
-  if (huart->Instance == USART1)
-  {
-   if(syncMode)
-   {
-	  // if detecting a \n character we have found a "frame" so start receiving frame by frame
-      if(usartBuf[0] == '\n')
-      {
-    	  syncMode = 0;
-    	  HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
-      }
-   }
+	if (huart->Instance == USART1)
+	{
+		if(uartSyncMode)
+		{
+			// if detecting a \n character we have found a "frame" so start receiving frame by frame
+			if(usartBuf[0] == '\n')
+			{
+				uartSyncMode = 0;
+				//HAL_UART_Receive_DMA(&huart1, usartBuf, MSGLENGTH);
+				HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
+			}
 
-   if(usartBuf[MSGLENGTH-1] == '\n')	// process data
-   {
-	  sscanf((char*)usartBuf, "%x %x", &ADCValue1, &ADCValue2);
+			HAL_UART_Receive_IT(&huart1, usartBuf, 1);
+			return;
+		}
 
-      /* Receive MSGLENGTH new bytes */
-      HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
-   }
-   else
-   {
-	  syncMode = 1;
+		if(usartBuf[MSGLENGTH-1] == '\n')	// process data
+		{
+			int val1, val2;
 
-      /* Receive one byte and try to synchronize */
-      HAL_UART_Receive_IT(&huart1, usartBuf, 1);
-   }
-  }
+			if(sscanf((char*)usartBuf, "%x %x", &val1, &val2) == 2)
+			{
+				ADCValue1 = val1;
+				ADCValue2 = val2;
+			}
+
+			/* Receive MSGLENGTH new bytes */
+			//HAL_UART_Receive_DMA(&huart1, usartBuf, MSGLENGTH);
+			HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
+		}
+		else	// end of line char was not received, go to sync mode
+		{
+			uartSyncMode = 1;
+
+			/* Receive one byte and try to synchronize */
+			HAL_UART_Receive_IT(&huart1, usartBuf, 1);
+		}
+	}
 }
 
 /*
  * Adjust the 4 PWM outputs that controls the DRV8835 module
  */
-void DRV8835PWMControl(int val1, int val2)
+void DRV8835PWMControl(uint16_t val1, uint16_t val2)
 {
-    TIM_OC_InitTypeDef sConfigOC;
-    sConfigOC.OCMode = TIM_OCMODE_PWM1;
-    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+	TIM_OC_InitTypeDef sConfigOC;
+	sConfigOC.OCMode = TIM_OCMODE_PWM1;
+	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
 
-    if(val1 > (MIDDLEVALUE + DEADZONE))
-    {
-      int speed = val1 - MIDDLEVALUE;
+	if(val1 > (JOYSTICK_MIDVALUE + JOYSTICK_DEADZONE))
+	{
+		uint16_t speed = val1 - JOYSTICK_MIDVALUE;
 
-      sConfigOC.Pulse = 0;
-      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
-      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+		sConfigOC.Pulse = 0;
+		HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
+		HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
-      sConfigOC.Pulse = speed;
-      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
-      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
-    }
-    else
-      if(val1 < (MIDDLEVALUE - DEADZONE))
-      {
-        int speed = MIDDLEVALUE - val1;
+		sConfigOC.Pulse = speed;
+		HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
+		HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+	}
+	else
+		if(val1 < (JOYSTICK_MIDVALUE - JOYSTICK_DEADZONE))
+		{
+			int speed = JOYSTICK_MIDVALUE - val1;
 
-        sConfigOC.Pulse = speed;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+			sConfigOC.Pulse = speed;
+			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
+			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
 
-        sConfigOC.Pulse = 0;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
-      }
-      else
-      {
-        TIM_OC_InitTypeDef sConfigOC;
+			sConfigOC.Pulse = 0;
+			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
+			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+		}
+		else
+		{
+			TIM_OC_InitTypeDef sConfigOC;
 
-        sConfigOC.Pulse = 0;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+			sConfigOC.Pulse = 0;
+			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
+			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
+			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+		}
 
-        sConfigOC.Pulse = 0;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
-      }
+	if(val2 > (JOYSTICK_MIDVALUE + JOYSTICK_DEADZONE))
+	{
+		uint16_t speed = val2 - JOYSTICK_MIDVALUE;
 
-    if(val2 > (MIDDLEVALUE + DEADZONE))
-    {
-      int speed = val2 - MIDDLEVALUE;
-
-      sConfigOC.Pulse = 0;
-      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
-      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+		sConfigOC.Pulse = 0;
+		HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
+		HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
 
 
-      sConfigOC.Pulse = speed;
-      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
-      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
-    }
-    else
-      if(val2 < (MIDDLEVALUE - DEADZONE))
-      {
-        int speed = MIDDLEVALUE - val2;
+		sConfigOC.Pulse = speed;
+		HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
+		HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+	}
+	else
+		if(val2 < (JOYSTICK_MIDVALUE - JOYSTICK_DEADZONE))
+		{
+			uint16_t speed = JOYSTICK_MIDVALUE - val2;
 
-        TIM_OC_InitTypeDef sConfigOC;
-        sConfigOC.Pulse = speed;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+			sConfigOC.Pulse = speed;
+			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
+			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
 
-        sConfigOC.Pulse = 0;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
-      }
-      else
-      {
-        TIM_OC_InitTypeDef sConfigOC;
-
-        sConfigOC.Pulse = 0;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
-
-        sConfigOC.Pulse = 0;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
-      }
+			sConfigOC.Pulse = 0;
+			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
+			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+		}
+		else
+		{
+			sConfigOC.Pulse = 0;
+			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
+			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
+			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+		}
 
 }
 
@@ -236,6 +240,7 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
+  uartSyncMode = 1;	// start by receiving byte by byte until we get a end of line character
   HAL_UART_Receive_IT(&huart1, usartBuf, 1);
   /* USER CODE END 2 */
 
