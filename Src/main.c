@@ -73,10 +73,28 @@ int ADCValue2 = 0;
 #define MSGLENGTH 11
 uint8_t usartBuf[MSGLENGTH];
 
+#define MIDDLEVALUE 2048
+#define DEADZONE 100
+
+int syncMode = 0;	// in syncmode we read one byte at a time and searach for \n character
+
+/*
+ * Process incoming UART data from Bluetooth module (HM-10 BLE)
+ */
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if (huart->Instance == USART1)
   {
+   if(syncMode)
+   {
+	  // if detecting a \n character we have found a "frame" so start receiving frame by frame
+      if(usartBuf[0] == '\n')
+      {
+    	  syncMode = 0;
+    	  HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
+      }
+   }
+
    if(usartBuf[MSGLENGTH-1] == '\n')	// process data
    {
 	  sscanf((char*)usartBuf, "%x %x", &ADCValue1, &ADCValue2);
@@ -86,10 +104,102 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
    }
    else
    {
-      /* Receive MSGLENGTH new bytes */
-      HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
+	  syncMode = 1;
+
+      /* Receive one byte and try to synchronize */
+      HAL_UART_Receive_IT(&huart1, usartBuf, 1);
    }
   }
+}
+
+/*
+ * Adjust the 4 PWM outputs that controls the DRV8835 module
+ */
+void DRV8835PWMControl(int val1, int val2)
+{
+    TIM_OC_InitTypeDef sConfigOC;
+    sConfigOC.OCMode = TIM_OCMODE_PWM1;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+
+    if(val1 > (MIDDLEVALUE + DEADZONE))
+    {
+      int speed = val1 - MIDDLEVALUE;
+
+      sConfigOC.Pulse = 0;
+      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
+      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+
+      sConfigOC.Pulse = speed;
+      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
+      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+    }
+    else
+      if(val1 < (MIDDLEVALUE - DEADZONE))
+      {
+        int speed = MIDDLEVALUE - val1;
+
+        sConfigOC.Pulse = speed;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+
+        sConfigOC.Pulse = 0;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+      }
+      else
+      {
+        TIM_OC_InitTypeDef sConfigOC;
+
+        sConfigOC.Pulse = 0;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+
+        sConfigOC.Pulse = 0;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+      }
+
+    if(val2 > (MIDDLEVALUE + DEADZONE))
+    {
+      int speed = val2 - MIDDLEVALUE;
+
+      sConfigOC.Pulse = 0;
+      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
+      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+
+
+      sConfigOC.Pulse = speed;
+      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
+      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+    }
+    else
+      if(val2 < (MIDDLEVALUE - DEADZONE))
+      {
+        int speed = MIDDLEVALUE - val2;
+
+        TIM_OC_InitTypeDef sConfigOC;
+        sConfigOC.Pulse = speed;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+
+        sConfigOC.Pulse = 0;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+      }
+      else
+      {
+        TIM_OC_InitTypeDef sConfigOC;
+
+        sConfigOC.Pulse = 0;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
+
+        sConfigOC.Pulse = 0;
+        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
+        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+      }
+
 }
 
 /* USER CODE END 0 */
@@ -126,15 +236,13 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM4_Init();
   /* USER CODE BEGIN 2 */
-  HAL_UART_Receive_IT(&huart1, usartBuf, MSGLENGTH);
+  HAL_UART_Receive_IT(&huart1, usartBuf, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
-
 #ifdef USEADC
     if (HAL_ADC_Start(&hadc1) != HAL_OK)
     {
@@ -169,130 +277,12 @@ int main(void)
     HAL_ADC_Stop(&hadc1);
 #endif
 
-
-    if(ADCValue1 > (2048 + 100))
-    {
-      int speed = ADCValue1 - 2048;
-
-      TIM_OC_InitTypeDef sConfigOC;
-
-      sConfigOC.OCMode = TIM_OCMODE_PWM1;
-      sConfigOC.Pulse = 0;
-      sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-      sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
-      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-
-      sConfigOC.OCMode = TIM_OCMODE_PWM1;
-      sConfigOC.Pulse = speed;
-      sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-      sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
-      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
-    }
-    else
-      if(ADCValue1 < (2048 - 100))
-      {
-        int speed = 2048 - ADCValue1;
-
-        TIM_OC_InitTypeDef sConfigOC;
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = speed;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = 0;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
-      }
-      else
-      {
-        TIM_OC_InitTypeDef sConfigOC;
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = 0;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = 0;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
-      }
-
-    if(ADCValue2 > (2048 + 100))
-    {
-      int speed = ADCValue2 - 2048;
-
-      TIM_OC_InitTypeDef sConfigOC;
-
-      sConfigOC.OCMode = TIM_OCMODE_PWM1;
-      sConfigOC.Pulse = 0;
-      sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-      sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
-      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
-
-      sConfigOC.OCMode = TIM_OCMODE_PWM1;
-      sConfigOC.Pulse = speed;
-      sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-      sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-      HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
-      HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
-    }
-    else
-      if(ADCValue2 < (2048 - 100))
-      {
-        int speed = 2048 - ADCValue2;
-
-        TIM_OC_InitTypeDef sConfigOC;
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = speed;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = 0;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
-      }
-      else
-      {
-        TIM_OC_InitTypeDef sConfigOC;
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = 0;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
-
-        sConfigOC.OCMode = TIM_OCMODE_PWM1;
-        sConfigOC.Pulse = 0;
-        sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-        sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-        HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
-        HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
-      }
+    DRV8835PWMControl(ADCValue1, ADCValue2);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
+
   /* USER CODE END 3 */
 }
 
@@ -469,7 +459,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
