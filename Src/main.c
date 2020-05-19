@@ -128,80 +128,47 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
  */
 void DRV8835PWMControl(uint16_t val1, uint16_t val2)
 {
-	TIM_OC_InitTypeDef sConfigOC;
-	sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-
 	if(val1 > (JOYSTICK_MIDVALUE + JOYSTICK_DEADZONE))
 	{
 		uint16_t speed = val1 - JOYSTICK_MIDVALUE;
 
-		sConfigOC.Pulse = 0;
-		HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
-		HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-
-		sConfigOC.Pulse = speed;
-		HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
-		HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+		__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, 0);
+		__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, speed);
 	}
 	else
 		if(val1 < (JOYSTICK_MIDVALUE - JOYSTICK_DEADZONE))
 		{
 			int speed = JOYSTICK_MIDVALUE - val1;
 
-			sConfigOC.Pulse = speed;
-			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
-			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, speed);
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, 0);
 
-			sConfigOC.Pulse = 0;
-			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
-			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
 		}
 		else
 		{
-			TIM_OC_InitTypeDef sConfigOC;
-
-			sConfigOC.Pulse = 0;
-			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_1);
-			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
-			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_2);
-			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_2);
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, 0);
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_2, 0);
 		}
 
 	if(val2 > (JOYSTICK_MIDVALUE + JOYSTICK_DEADZONE))
 	{
 		uint16_t speed = val2 - JOYSTICK_MIDVALUE;
 
-		sConfigOC.Pulse = 0;
-		HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
-		HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
-
-
-		sConfigOC.Pulse = speed;
-		HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
-		HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+		__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, 0);
+		__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_4, speed);
 	}
 	else
 		if(val2 < (JOYSTICK_MIDVALUE - JOYSTICK_DEADZONE))
 		{
 			uint16_t speed = JOYSTICK_MIDVALUE - val2;
 
-			sConfigOC.Pulse = speed;
-			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
-			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
-
-			sConfigOC.Pulse = 0;
-			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
-			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, speed);
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_4, 0);
 		}
 		else
 		{
-			sConfigOC.Pulse = 0;
-			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_3);
-			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_3);
-			HAL_TIM_PWM_ConfigChannel(&htim4, &sConfigOC, TIM_CHANNEL_4);
-			HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_3, 0);
+			__HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_4, 0);
 		}
 
 }
